@@ -40,24 +40,15 @@ jobs:
           python -m unittest test_calc.py -v
 
       - name: Send Discord failure notification
-        if: failure()
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        uses: Ilshidur/action-discord@0.4.0
+        uses: sarisia/actions-status-discord@v1
+        if: always()
         with:
-          args: >
-            @here The Calculator App integration test failed for
-            ${{ github.repository }}.
-            Check run ${{ github.run_id }} on GitHub for details.
-
-      - name: Send Discord success notification
-        if: success()
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        uses: Ilshidur/action-discord@0.4.0
-        with:
-          args: >
-            The Calculator App for ${{ github.repository }}
-            passed successfully.
-            Run ID: ${{ github.run_id }}
-
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          # The action automatically detects success/failure, but you can customize the message
+          status: ${{ job.status }}
+          content: |
+            ${{ job.status == 'failure' && '@here ' || '' }}The Calculator App for ${{ github.repository }}
+            ${{ job.status == 'success' && 'passed successfully.' || 'integration test failed.' }}
+            Check run ${{ github.run_id }} for details.
+          title: "Build Status: ${{ job.status }}"
+          color: ${{ job.status == 'success' && '0x28a745' || '0xd73a49' }}
