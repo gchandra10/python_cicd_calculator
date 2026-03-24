@@ -2,47 +2,62 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  python-ci-job:
+  test:
+    name: Test Calculator App
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
-    #https://github.com/actions/setup-python
-    #https://github.com/actions/checkout
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Set up Python Environment
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-  
-    - name: Run Tests
-      run: |
-        python -m unittest test_calc.py -v
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Send Discord Failure Notification
-      # https://github.com/marketplace/actions/actions-for-discord
-      if: failure()
-      env:
-        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      uses: Ilshidur/action-discord@master
-      with:
-        args: '@here :x: The Calculator App integration {{ EVENT_PAYLOAD.repository.full_name }} test failed. Check the Run id ${{ github.run_id }} on Github for details.'
+      - name: Set up Python environment
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
 
-    - name: Send Discord Success Notification
-      # https://github.com/marketplace/actions/actions-for-discord
-      if: success()
-      env:
-        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      uses: Ilshidur/action-discord@master
-      with:
-        args: ' :white_check_mark: The Calculator App {{ EVENT_PAYLOAD.repository.full_name }} - ${{ github.run_id }} successfully integrated and tested.'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m unittest test_calc.py -v
+
+      - name: Send Discord failure notification
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        uses: Ilshidur/action-discord@0.4.0
+        with:
+          args: >
+            @here The Calculator App integration test failed for
+            ${{ github.repository }}.
+            Check run ${{ github.run_id }} on GitHub for details.
+
+      - name: Send Discord success notification
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        uses: Ilshidur/action-discord@0.4.0
+        with:
+          args: >
+            The Calculator App for ${{ github.repository }}
+            passed successfully.
+            Run ID: ${{ github.run_id }}
 
